@@ -5,33 +5,35 @@ require("dotenv").config();
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token =
-    authHeader && authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
-      : null;
+      authHeader && authHeader.startsWith("Bearer ")
+          ? authHeader.split(" ")[1]
+          : null;
 
   if (!token) {
-    return res.status(401).json({
-      message: "No token provided or invalid format",
-    });
+      return res.status(401).json({
+          message: "No token provided or invalid format",
+      });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return res.status(401).json({
-        message: "User not found",
-      });
-    }
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id);
+      if (!user) {
+          return res.status(401).json({
+              message: "User not found",
+          });
+      }
 
-    req.user = user;
-    next();
+      req.user = user;
+      console.log('Authenticated user:', req.user); // Adaugă logare
+      next();
   } catch (error) {
-    console.error("Token verification error:", error.message);
-    res.status(401).json({
-      message: "Not authorized",
-    });
+      console.error("Token verification error:", error.message);
+      res.status(401).json({
+          message: "Not authorized",
+      });
   }
 };
+
 
 module.exports = authenticate;

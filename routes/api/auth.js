@@ -83,7 +83,7 @@ router.get("/secure-data", authenticate, (req, res) => {
         to: email,
         subject: "Nodemailer test",
         text: "Testare de email registration",
-        html: `<p>Click <a href="${process.env.BASE_URL}/api/users/verify/${verificationToken}">here</a> to verify your email address.</p>`,
+        html: `<p>Click <a href="${process.env.BASE_URL}/food/users/verify/${verificationToken}">here</a> to verify your email address.</p>`,
       };
 
       try {
@@ -246,7 +246,7 @@ router.get("/current", authenticate, async (req, res) => {
   });
 });
 
-// Update the user's subscription.( :3000/api/auth/)
+// Update the user's subscription.( :8000/food/auth/)
 router.patch("/", authenticate, async (req, res) => {
   const { subscription } = req.body;
 
@@ -418,7 +418,7 @@ router.post("/resend-verify", async (req, res) => {
       to: email,
       subject: "Verify Your Email Address",
       text: "Please verify your email address.",
-      html: `<p>Click <a href="${process.env.BASE_URL}/api/users/verify/${verificationToken}">here</a> to verify your email address.</p>`,
+      html: `<p>Click <a href="${process.env.BASE_URL}/food/users/verify/${verificationToken}">here</a> to verify your email address.</p>`,
     };
 
     try {
