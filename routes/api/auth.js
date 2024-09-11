@@ -26,6 +26,37 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
+/**
+ * @swagger
+ * /secure-data:
+ *   get:
+ *     summary: Obține date securizate pentru utilizatorul autentificat
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Date securizate
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                     subscription:
+ *                       type: string
+ *       401:
+ *         description: Neautorizat
+ *       500:
+ *         description: Eroare server
+ */
+
 router.get("/secure-data", authenticate, (req, res) => {
   const user = req.user;
   res.json({
@@ -37,9 +68,65 @@ router.get("/secure-data", authenticate, (req, res) => {
   });
 });
 
+
+
 // Register
 (async () => {
   const { nanoid } = await import("nanoid");
+ /**
+   * @swagger
+   * /register:
+   *   post:
+   *     summary: Înregistrează un nou utilizator
+   *     tags: [User]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               username:
+   *                 type: string
+   *               email:
+   *                 type: string
+   *                 format: email
+   *               password:
+   *                 type: string
+   *     responses:
+   *       201:
+   *         description: Înregistrare reușită
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                 code:
+   *                   type: integer
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     message:
+   *                       type: string
+   *                     user:
+   *                       type: object
+   *                       properties:
+   *                         email:
+   *                           type: string
+   *                         subscription:
+   *                           type: string
+   *                         verify:
+   *                           type: boolean
+   *       400:
+   *         description: Cerere invalidă
+   *       409:
+   *         description: Email deja utilizat
+   *       500:
+   *         description: Eroare server
+   */
+
 
   router.post("/register", async (req, res) => {
     const { error } = userSchema.validate(req.body);
@@ -129,7 +216,59 @@ router.get("/secure-data", authenticate, (req, res) => {
   });
 })();
 
-// Login
+
+/**
+ * @swagger
+ * /login:
+ *   post:
+ *     summary: Autentifică un utilizator existent
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Autentificare reușită
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 code:
+ *                   type: integer
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         email:
+ *                           type: string
+ *                         subscription:
+ *                           type: string
+ *       400:
+ *         description: Cerere invalidă
+ *       401:
+ *         description: Email sau parolă incorectă
+ *       403:
+ *         description: Email neconfirmat
+ *       500:
+ *         description: Eroare server
+ */
+
 router.post("/login", async (req, res) => {
   const { error } = loginSchema.validate(req.body);
   if (error) {
@@ -193,10 +332,24 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Logout
+/**
+ * @swagger
+ * /logout:
+ *   post:
+ *     summary: Deconectează utilizatorul autentificat
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Deconectare reușită
+ *       401:
+ *         description: Neautorizat
+ *       500:
+ *         description: Eroare server
+ */
 router.post("/logout", authenticate, async (req, res) => {
-  const token =
-    req.headers.authorization && req.headers.authorization.split(" ")[1];
+  const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({
@@ -225,7 +378,11 @@ router.post("/logout", authenticate, async (req, res) => {
 
     await user.removeToken(token);
 
-    res.status(204).send();
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Successfully logged out",
+    });
   } catch (error) {
     console.error("Logout error:", error);
     res.status(500).json({
@@ -236,8 +393,33 @@ router.post("/logout", authenticate, async (req, res) => {
   }
 });
 
-// User Data
 
+
+/**
+ * @swagger
+ * /current:
+ *   get:
+ *     summary: Obține datele utilizatorului autentificat
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Datele utilizatorului
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 email:
+ *                   type: string
+ *                 subscription:
+ *                   type: string
+ *       401:
+ *         description: Neautorizat
+ *       500:
+ *         description: Eroare server
+ */
 router.get("/current", authenticate, async (req, res) => {
   const user = req.user;
   res.status(200).json({
@@ -247,6 +429,47 @@ router.get("/current", authenticate, async (req, res) => {
 });
 
 // Update the user's subscription.( :8000/food/auth/)
+/**
+ * @swagger
+ * /:
+ *   patch:
+ *     summary: Actualizează abonamentul utilizatorului autentificat
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               subscription:
+ *                 type: string
+ *                 enum: [starter, pro, business]
+ *     responses:
+ *       200:
+ *         description: Abonament actualizat cu succes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     email:
+ *                       type: string
+ *                     subscription:
+ *                       type: string
+ *       400:
+ *         description: Valoare abonament invalidă
+ *       500:
+ *         description: Eroare server
+ */
+
 router.patch("/", authenticate, async (req, res) => {
   const { subscription } = req.body;
 
@@ -276,6 +499,41 @@ router.patch("/", authenticate, async (req, res) => {
 });
 
 // Update the user's avatar.
+
+/**
+ * @swagger
+ * /avatars:
+ *   patch:
+ *     summary: Actualizează avatarul utilizatorului autentificat
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar actualizat cu succes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 avatarURL:
+ *                   type: string
+ *       500:
+ *         description: Eroare server
+ */
+
 router.patch(
   "/avatars",
   authenticate,
@@ -308,6 +566,29 @@ router.patch(
 );
 
 // Send email
+/**
+ * @swagger
+ * /verify:
+ *   post:
+ *     summary: Trimite un email de verificare
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       201:
+ *         description: Email de verificare trimis
+ *       500:
+ *         description: Eroare server
+ */
+
 router.post("/verify", async (req, res) => {
   const { email } = req.body;
 
@@ -333,6 +614,29 @@ router.post("/verify", async (req, res) => {
 });
 
 // Get user verify email
+
+/**
+ * @swagger
+ * /verify/{verificationToken}:
+ *   get:
+ *     summary: Verifică utilizatorul cu tokenul de verificare
+ *     tags: [User]
+ *     parameters:
+ *       - name: verificationToken
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Verificare reușită
+ *       400:
+ *         description: Utilizator deja verificat
+ *       404:
+ *         description: Utilizator nencontrat
+ *       500:
+ *         description: Eroare server
+ */
 
 router.get("/verify/:verificationToken", async (req, res) => {
   const { verificationToken } = req.params;
@@ -361,6 +665,36 @@ router.get("/verify/:verificationToken", async (req, res) => {
 });
 
 // Change verification token in true
+
+/**
+ * @swagger
+ * /test-verify:
+ *   post:
+ *     summary: Testează verificarea utilizatorului cu tokenul de verificare
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               verificationToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Verificare reușită
+ *       400:
+ *         description: Token de verificare invalid
+ *       404:
+ *         description: Utilizator nencontrat
+ *       500:
+ *         description: Eroare server
+ */ 
+
 router.post("/test-verify", async (req, res) => {
   console.log("Received request body:", req.body);
   const { email, verificationToken } = req.body;
@@ -385,6 +719,34 @@ router.post("/test-verify", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+
+/**
+ * @swagger
+ * /resend-verify:
+ *   post:
+ *     summary: Retrimite emailul de verificare
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Email de verificare retrimis
+ *       400:
+ *         description: Email deja verificat
+ *       404:
+ *         description: Utilizator nencontrat
+ *       500:
+ *         description: Eroare server
+ */
 
 router.post("/resend-verify", async (req, res) => {
   const { email } = req.body;
