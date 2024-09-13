@@ -13,6 +13,7 @@ const nodemailer = require("nodemailer");
 const nodemailerConfig = require("../../config/nodemail");
 require("dotenv").config();
 
+
 const uploadTmp = multer({ dest: "tmp/" });
 
 const userSchema = Joi.object({
@@ -25,49 +26,6 @@ const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
 });
-
-/**
- * @swagger
- * /secure-data:
- *   get:
- *     summary: Obține date securizate pentru utilizatorul autentificat
- *     tags: [User]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Date securizate
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   type: object
- *                   properties:
- *                     email:
- *                       type: string
- *                     subscription:
- *                       type: string
- *       401:
- *         description: Neautorizat
- *       500:
- *         description: Eroare server
- */
-
-router.get("/secure-data", authenticate, (req, res) => {
-  const user = req.user;
-  res.json({
-    message: "This is secure data",
-    user: {
-      email: user.email,
-      subscription: user.subscription,
-    },
-  });
-});
-
 
 
 // Register
@@ -114,8 +72,6 @@ router.get("/secure-data", authenticate, (req, res) => {
    *                       type: object
    *                       properties:
    *                         email:
-   *                           type: string
-   *                         subscription:
    *                           type: string
    *                         verify:
    *                           type: boolean
@@ -183,7 +139,6 @@ router.get("/secure-data", authenticate, (req, res) => {
               "Registration successful. Please check your email to verify your account.",
             user: {
               email: newUser.email,
-              subscription: newUser.subscription,
               verify: newUser.verify,
             },
           },
@@ -198,7 +153,6 @@ router.get("/secure-data", authenticate, (req, res) => {
               "Registration successful. Please check your email to verify your account. However, email sending failed.",
             user: {
               email: newUser.email,
-              subscription: newUser.subscription,
               verify: newUser.verify,
             },
           },
@@ -256,9 +210,7 @@ router.get("/secure-data", authenticate, (req, res) => {
  *                       type: object
  *                       properties:
  *                         email:
- *                           type: string
- *                         subscription:
- *                           type: string
+ *                           type: string       
  *       400:
  *         description: Cerere invalidă
  *       401:
@@ -269,7 +221,7 @@ router.get("/secure-data", authenticate, (req, res) => {
  *         description: Eroare server
  */
 
-router.post("/login", async (req, res) => {
+router.post('/login', async (req, res) => {
   const { error } = loginSchema.validate(req.body);
   if (error) {
     return res.status(400).json({
@@ -283,8 +235,10 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    // Find the user by email
     const user = await User.findOne({ email });
 
+    // Check if user exists and password is valid
     if (!user || !(await user.isValidPassword(password))) {
       return res.status(401).json({
         status: "error",
@@ -296,6 +250,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    // Check if email is verified
     if (!user.verify) {
       return res.status(403).json({
         status: "error",
@@ -307,6 +262,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    // Create JWT payload and generate token
     const payload = {
       id: user.id,
       username: user.username,
@@ -315,19 +271,21 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
-    res.json({
+
+    // Respond with token and user details
+    res.status(200).json({
       status: "success",
       code: 200,
       data: {
         token,
         user: {
+          username: user.username,
           email: user.email,
-          subscription: user.subscription,
         },
       },
     });
   } catch (error) {
-    console.error(error);
+    console.error("Login error:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -413,90 +371,19 @@ router.post("/logout", authenticate, async (req, res) => {
  *               properties:
  *                 email:
  *                   type: string
- *                 subscription:
- *                   type: string
+ *               
  *       401:
  *         description: Neautorizat
  *       500:
  *         description: Eroare server
  */
-router.get("/current", authenticate, async (req, res) => {
+router.get('/current', authenticate, async (req, res) => {
   const user = req.user;
   res.status(200).json({
-    email: user.email,
-    subscription: user.subscription,
+    username: user.username,
   });
 });
 
-// Update the user's subscription.( :8000/food/auth/)
-/**
- * @swagger
- * /:
- *   patch:
- *     summary: Actualizează abonamentul utilizatorului autentificat
- *     tags: [User]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               subscription:
- *                 type: string
- *                 enum: [starter, pro, business]
- *     responses:
- *       200:
- *         description: Abonament actualizat cu succes
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   type: object
- *                   properties:
- *                     email:
- *                       type: string
- *                     subscription:
- *                       type: string
- *       400:
- *         description: Valoare abonament invalidă
- *       500:
- *         description: Eroare server
- */
-
-router.patch("/", authenticate, async (req, res) => {
-  const { subscription } = req.body;
-
-  const validSubscriptions = ["starter", "pro", "business"];
-  if (!validSubscriptions.includes(subscription)) {
-    return res.status(400).json({
-      message: `Invalid subscription value. Must be one of ${validSubscriptions.join(
-        ", "
-      )}`,
-    });
-  }
-
-  try {
-    const user = req.user;
-    user.subscription = subscription;
-    await user.save();
-    res.status(200).json({
-      message: "Subscription updated successfully",
-      user: {
-        email: user.email,
-        subscription: user.subscription,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 // Update the user's avatar.
 

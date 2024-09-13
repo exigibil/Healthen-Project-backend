@@ -33,7 +33,6 @@ describe("POST /api/users/login", () => {
       username: "testuser",
       email: "testuser@example.com",
       password: "testpassword",
-      subscription: "starter",
     });
     await user.setPassword("testpassword");
     await user.save();
@@ -51,7 +50,6 @@ describe("POST /api/users/login", () => {
     expect(response.body.data).toHaveProperty("token");
     expect(response.body.data.user).toEqual({
       email: "testuser@example.com",
-      subscription: "starter",
     });
   });
 
