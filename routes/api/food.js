@@ -12,6 +12,7 @@ const postSchema = Joi.object({
         name: Joi.string().required(),
         grams: Joi.number().required(),
         date: Joi.date().optional(),
+        calories: Joi.number().required(),
       })
     )
     .required(),
@@ -60,11 +61,37 @@ const postSchema = Joi.object({
  */
 
 router.get("/", authenticate, async (req, res) => {
-  console.log("Request object:", req);
+  // console.log("Request object:", req);
 
   try {
     const data = await Food.find({});
-    console.log("Fetched data:", data);
+    // console.log("Fetched data:", data);
+
+    if (data.length === 0) {
+      return res.status(404).json({ message: "No documents found" });
+    }
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error("Error fetching food data:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get("/search", authenticate, async (req, res) => {
+  try {
+    const { title, category } = req.query;
+    const query = {};
+
+    if (title) {
+      query.title = { $regex: title, $options: 'i' }; 
+    }
+
+    if (category) {
+      query.categories = category;
+    }
+
+    const data = await Food.find(query);
 
     if (data.length === 0) {
       return res.status(404).json({ message: "No documents found" });
@@ -461,7 +488,7 @@ router.post("/add-diary", authenticate, async (req, res) => {
  *         description: Eroare server
  */
 
-router.post("/remove-diary", authenticate, async (req, res) => {
+router.delete("/remove-diary", authenticate, async (req, res) => {
   const { foodItemId } = req.body;
   const owner = req.user._id;
 

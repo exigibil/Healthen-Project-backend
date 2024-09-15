@@ -21,6 +21,10 @@ const diarySchema = new mongoose.Schema(
           type: Date,
           default: Date.now,
         },
+        calories: {
+          type: Number,
+          required: true,
+        },
       },
     ],
     createdAt: {

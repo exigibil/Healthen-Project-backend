@@ -271,6 +271,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
+    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
 
     // Respond with token and user details
     res.status(200).json({
@@ -278,6 +279,7 @@ router.post('/login', async (req, res) => {
       code: 200,
       data: {
         token,
+        refreshToken, 
         user: {
           username: user.username,
           email: user.email,
@@ -686,6 +688,30 @@ router.post("/resend-verify", async (req, res) => {
     res.status(500).json({
       message: "Internal server error",
     });
+  }
+});
+
+// Refresh token route
+router.post("/auth/refresh-token", async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(403).json({ message: "Refresh token is required" });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    
+   
+    const newAccessToken = jwt.sign(
+      { id: decoded.id, username: decoded.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.status(200).json({ accessToken: newAccessToken });
+  } catch (error) {
+    res.status(403).json({ message: "Invalid refresh token" });
   }
 });
 
