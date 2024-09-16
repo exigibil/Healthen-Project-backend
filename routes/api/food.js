@@ -649,7 +649,7 @@ router.post("/private/calculator", authenticate, async (req, res) => {
    
     const user = req.user; 
     await Diary.create({
-      user: user._id,
+      owner: user._id,
       date: new Date(),
       calorieIntake: desiredFormula,
       forbiddenFoods: forbiddenFoods.map(food => food.title)
