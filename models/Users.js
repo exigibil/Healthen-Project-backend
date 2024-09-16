@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -37,6 +36,9 @@ const userSchema = new mongoose.Schema({
       return nanoid();
     },
   },
+  dailyKcal: {
+     type: Number,
+      default: 0 },
 });
 
 userSchema.methods.setPassword = async function (password) {

@@ -5,16 +5,11 @@ const User = require("../../models/Users");
 const jwt = require("jsonwebtoken");
 const authenticate = require("../api/authMiddleware");
 const gravatar = require("gravatar");
-const multer = require("multer");
-const jimp = require("jimp");
-const path = require("path");
-const fs = require("fs");
 const nodemailer = require("nodemailer");
 const nodemailerConfig = require("../../config/nodemail");
 require("dotenv").config();
 
 
-const uploadTmp = multer({ dest: "tmp/" });
 
 const userSchema = Joi.object({
   username: Joi.string().required(),
@@ -27,11 +22,10 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
-
 // Register
 (async () => {
   const { nanoid } = await import("nanoid");
- /**
+  /**
    * @swagger
    * /register:
    *   post:
@@ -82,7 +76,6 @@ const loginSchema = Joi.object({
    *       500:
    *         description: Eroare server
    */
-
 
   router.post("/register", async (req, res) => {
     const { error } = userSchema.validate(req.body);
@@ -170,7 +163,6 @@ const loginSchema = Joi.object({
   });
 })();
 
-
 /**
  * @swagger
  * /login:
@@ -210,7 +202,7 @@ const loginSchema = Joi.object({
  *                       type: object
  *                       properties:
  *                         email:
- *                           type: string       
+ *                           type: string
  *       400:
  *         description: Cerere invalidă
  *       401:
@@ -221,7 +213,7 @@ const loginSchema = Joi.object({
  *         description: Eroare server
  */
 
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   const { error } = loginSchema.validate(req.body);
   if (error) {
     return res.status(400).json({
@@ -271,7 +263,9 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
-    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+      expiresIn: "7d",
+    });
 
     // Respond with token and user details
     res.status(200).json({
@@ -279,16 +273,25 @@ router.post('/login', async (req, res) => {
       code: 200,
       data: {
         token,
-        refreshToken, 
+        refreshToken,
         user: {
           username: user.username,
           email: user.email,
+          dailyKcal: user.dailyKcal,
         },
       },
     });
   } catch (error) {
-    console.error("Login error:", error.message);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Login error:", error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      data: {
+        message: "An unexpected error occurred",
+        error: error.message,
+      },
+    });
   }
 });
 
@@ -309,7 +312,8 @@ router.post('/login', async (req, res) => {
  *         description: Eroare server
  */
 router.post("/logout", authenticate, async (req, res) => {
-  const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
+  const token =
+    req.headers.authorization && req.headers.authorization.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({
@@ -353,8 +357,6 @@ router.post("/logout", authenticate, async (req, res) => {
   }
 });
 
-
-
 /**
  * @swagger
  * /current:
@@ -373,19 +375,18 @@ router.post("/logout", authenticate, async (req, res) => {
  *               properties:
  *                 email:
  *                   type: string
- *               
+ *
  *       401:
  *         description: Neautorizat
  *       500:
  *         description: Eroare server
  */
-router.get('/current', authenticate, async (req, res) => {
+router.get("/current", authenticate, async (req, res) => {
   const user = req.user;
   res.status(200).json({
     username: user.username,
   });
 });
-
 
 // Update the user's avatar.
 
@@ -423,36 +424,27 @@ router.get('/current', authenticate, async (req, res) => {
  *         description: Eroare server
  */
 
-router.patch(
-  "/avatars",
-  authenticate,
-  uploadTmp.single("avatar"),
-  async (req, res) => {
-    try {
-      const user = req.user;
-      const { path: tempPath, originalname } = req.file;
-      const ext = path.extname(originalname);
-      const filename = `${user._id}${ext}`;
-      const avatarsFolder = path.join(__dirname, "../../public/avatars");
-      const finalPath = path.join(avatarsFolder, filename);
 
-      const image = await jimp.read(tempPath);
-      await image.resize(250, 250).writeAsync(finalPath);
 
-      fs.unlinkSync(tempPath);
 
-      user.avatarURL = `/avatars/${filename}`;
-      await user.save();
+router.post("/dailyKcal", authenticate, async (req, res) => {
+  const { kcal } = req.body;
 
-      res.status(200).json({
-        message: "Avatar updated successfully",
-        avatarURL: user.avatarURL,
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
+  if (typeof kcal !== 'number' || kcal <= 0) {
+    return res.status(400).json({ message: 'Invalid kcal value' });
   }
-);
+
+  try {
+    const user = req.user;
+    user.dailyKcal = kcal;
+    await user.save();
+
+    res.status(200).json({ message: 'Daily kcal updated successfully', dailyKcal: user.dailyKcal });
+  } catch (error) {
+    console.error("Error updating daily kcal:", error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
 
 // Send email
 /**
@@ -582,7 +574,7 @@ router.get("/verify/:verificationToken", async (req, res) => {
  *         description: Utilizator nencontrat
  *       500:
  *         description: Eroare server
- */ 
+ */
 
 router.post("/test-verify", async (req, res) => {
   console.log("Received request body:", req.body);
@@ -608,7 +600,6 @@ router.post("/test-verify", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 /**
  * @swagger
@@ -701,8 +692,7 @@ router.post("/auth/refresh-token", async (req, res) => {
 
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    
-   
+
     const newAccessToken = jwt.sign(
       { id: decoded.id, username: decoded.username },
       process.env.JWT_SECRET,

@@ -11,13 +11,12 @@ const postSchema = Joi.object({
       Joi.object({
         name: Joi.string().required(),
         grams: Joi.number().required(),
-        date: Joi.date().optional(),
+        date: Joi.date().iso().required(), // Verifică dacă formatul ISO este acceptat
         calories: Joi.number().required(),
       })
     )
     .required(),
 });
-
 // const putSchema = Joi.object({
 //     name: Joi.string().required(),
 //     grams: Joi.string().required(),
@@ -84,7 +83,7 @@ router.get("/search", authenticate, async (req, res) => {
     const query = {};
 
     if (title) {
-      query.title = { $regex: title, $options: 'i' }; 
+      query.title = { $regex: title, $options: "i" };
     }
 
     if (category) {
@@ -416,11 +415,14 @@ router.post("/add-diary", authenticate, async (req, res) => {
   const { error } = postSchema.validate(req.body);
 
   if (error) {
+    console.log("Validation error:", error.details);
     return res.status(400).json({ message: error.details[0].message });
   }
 
   const { foodItems } = req.body;
   const owner = req.user._id;
+
+  console.log("Received data:", { owner, foodItems });
 
   try {
     const newDiaryEntry = new Diary({
@@ -434,6 +436,7 @@ router.post("/add-diary", authenticate, async (req, res) => {
       diary: newDiaryEntry,
     });
   } catch (err) {
+    console.error("Server error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 });
@@ -563,47 +566,25 @@ router.delete("/remove-diary", authenticate, async (req, res) => {
 router.post("/calculator", async (req, res) => {
   const { height, age, desiredWeight, bloodType } = req.body;
 
-  // Formula de calcul pentru BMR (Basal Metabolic Rate)
-  // const curentFormula = 10 * parseFloat(weight) + 6.25 * parseFloat(height) - 5 * parseFloat(age) + 5;
-  const desiredFormula =
-    10 * parseFloat(desiredWeight) +
-    6.25 * parseFloat(height) -
-    5 * parseFloat(age) +
-    5;
+  const desiredFormula = 10 * parseFloat(desiredWeight) + 6.25 * parseFloat(height) - 5 * parseFloat(age) + 5;
 
-  // const calories =  curentFormula - desiredFormula;
   let groupBloodIndex;
   switch (bloodType) {
-    case "0":
-      groupBloodIndex = 1; // tip 0
-      break;
-    case "A":
-      groupBloodIndex = 2; //  tip A
-      break;
-    case "B":
-      groupBloodIndex = 3; // tip B
-      break;
-    case "AB":
-      groupBloodIndex = 4; //  tip AB
-      break;
-    default:
-      groupBloodIndex = 0;  // null
+    case "O": groupBloodIndex = 1; break;
+    case "A": groupBloodIndex = 2; break;
+    case "B": groupBloodIndex = 3; break;
+    case "AB": groupBloodIndex = 4; break;
+    default: groupBloodIndex = 0;
   }
 
   try {
-    const forbiddenFoods = await Food.find({
-      [`groupBloodNotAllowed.${groupBloodIndex}`]: true,
-    }).select("title");
-
-    res.status(200).json({
-      desiredFormula,
-      forbiddenFoods,
-    });
+    const forbiddenFoods = await Food.find({ [`groupBloodNotAllowed.${groupBloodIndex}`]: true }).select("title");
+    res.status(200).json({ desiredFormula, forbiddenFoods });
   } catch (error) {
-    console.error("Error:", error);
     res.status(500).json({ message: error.message });
   }
 });
+
 
 /**
  * @swagger
@@ -647,47 +628,35 @@ router.post("/calculator", async (req, res) => {
  *         description: Eroare server
  */
 
+// Ruta privată care calculează și adaugă rezultatul în diary
 router.post("/private/calculator", authenticate, async (req, res) => {
   const { height, age, desiredWeight, bloodType } = req.body;
+  const desiredFormula = 10 * parseFloat(desiredWeight) + 6.25 * parseFloat(height) - 5 * parseFloat(age) + 5;
 
-  // Formula de calcul pentru BMR (Basal Metabolic Rate)
-  // const curentFormula = 10 * parseFloat(weight) + 6.25 * parseFloat(height) - 5 * parseFloat(age) + 5;
-  const desiredFormula =
-    10 * parseFloat(desiredWeight) +
-    6.25 * parseFloat(height) -
-    5 * parseFloat(age) +
-    5;
-
-  // const calories =  curentFormula - desiredFormula;
   let groupBloodIndex;
   switch (bloodType) {
-    case "0":
-      groupBloodIndex = 1; // pentru tip 0
-      break;
-    case "A":
-      groupBloodIndex = 2; // pentru tip A
-      break;
-    case "B":
-      groupBloodIndex = 3; // pentru tip B
-      break;
-    case "AB":
-      groupBloodIndex = 4; // pentru tip AB
-      break;
-    default:
-      groupBloodIndex = 0; // 0 este default pentru neselectat
+    case "O": groupBloodIndex = 1; break;
+    case "A": groupBloodIndex = 2; break;
+    case "B": groupBloodIndex = 3; break;
+    case "AB": groupBloodIndex = 4; break;
+    default: groupBloodIndex = 0;
   }
 
   try {
-    const forbiddenFoods = await Food.find({
-      [`groupBloodNotAllowed.${groupBloodIndex}`]: true,
-    }).select("title");
+ 
+    const forbiddenFoods = await Food.find({ [`groupBloodNotAllowed.${groupBloodIndex}`]: true }).select("title");
 
-    res.status(200).json({
-      desiredFormula,
-      forbiddenFoods,
+   
+    const user = req.user; 
+    await Diary.create({
+      user: user._id,
+      date: new Date(),
+      calorieIntake: desiredFormula,
+      forbiddenFoods: forbiddenFoods.map(food => food.title)
     });
+
+    res.status(200).json({ desiredFormula, forbiddenFoods });
   } catch (error) {
-    console.error("Error:", error);
     res.status(500).json({ message: error.message });
   }
 });
